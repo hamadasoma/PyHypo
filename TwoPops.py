@@ -13,6 +13,12 @@ from HypoTools import *
 '''
    Hypothesis test for proportions for two populations
    '''
+
+'''
+   Hypothesis test for variances difference for two populations
+   '''
+#----------------------------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------------------------------
 
 '''
@@ -22,69 +28,65 @@ from HypoTools import *
    '''
 
 class TwoPopulations_MeansEstimation():
-    def __init__(self, sampleGroup1, sampleGroup2, alpha, H1_oper, D=0):
+    def __init__(self, SampleGroup1, SampleGroup2, alpha, H1_oper, D=0):
         '''
+SampleGroup1, SampleGroup2 ---> Two variable cutomized object class of type SampleGroup. Refer to HypoTools.py for details.
 alfa ---> Level of significance.
 H1_oper ---> Alternative Hypothesis operator: '>', '<', or '!='
 D ---> meu1 - meu2, normally zero
 '''
-        self.sampleGroup1 = sampleGroup1
-        self.sampleGroup2 = sampleGroup2
+        self.SampleGroup1 = SampleGroup1
+        self.SampleGroup2 = SampleGroup2
         self.alpha = alpha
         self.H1_oper = H1_oper
         self.D = D
-        self.used_test = used_test(sampleGroup1)
-        self.report = {'Report state': "Test not applied yet."}
-
-    def reject_H0(self):
-        if self.sampleGroup1.is_popVarianceKnown:     #Population variance is known
+        self.used_test = used_test(SampleGroup1)
+        xbar1 = self.SampleGroup1.xbar
+        xbar2 = self.SampleGroup2.xbar
+        n1 = self.SampleGroup1.n
+        n2 = self.SampleGroup2.n
+        if self.SampleGroup1.is_popVarianceKnown:     #Population variance is known
             #Calculate zalpha
-            zalpha = zalphaTails_Dict[self.H1_oper](self.alpha)
-            self.report['zalpha'] = zalpha
-            #Calculate ztest
-            xbar1 = self.sampleGroup1.xbar
-            xbar2 = self.sampleGroup2.xbar            
-            sigma1 = self.sampleGroup1.sigma
-            sigma2 = self.sampleGroup2.sigma
-            n1 = self.sampleGroup1.n
-            n2 = self.sampleGroup2.n
-            ztest = ((xbar1-xbar2) - self.D)/sqrt(sigma1**2/n1 + sigma2**2/n2)
-            self.report['ztest'] = ztest
+            self.zalpha = zalphaTails_Dict[self.H1_oper](self.alpha)
+            #Calculate ztest            
+            sigma1 = self.SampleGroup1.sigma
+            sigma2 = self.SampleGroup2.sigma            
+            self.ztest = ((xbar1-xbar2) - self.D)/sqrt(sigma1**2/n1 + sigma2**2/n2)
             #Decision
-            decn = Decision[self.H1_oper](ztest, zalpha)
-            if decn: self.report['Test result'] = "SUCCESS to REJECT null hypothesis."
-            else: self.report['Test result'] = "FAIL to REJECT null hypothesis."
-            return decn
+            decn = Decision[self.H1_oper](self.ztest, self.zalpha)
+            if decn: self.reject_H0 = True   #SUCCESS to REJECT null hypothesis.
+            else: self.reject_H0 = False     #FAIL to REJECT null hypothesis.          
         else:                                        #Population variance is not known
-            xbar1 = self.sampleGroup1.xbar
-            xbar2 = self.sampleGroup2.xbar            
-            S1 = self.sampleGroup1.sigma
-            S2 = self.sampleGroup2.sigma
-            n1 = self.sampleGroup1.n
-            n2 = self.sampleGroup2.n
+            S1 = self.SampleGroup1.sigma
+            S2 = self.SampleGroup2.sigma
             #Calculate degree of freedom
-            dof_domin = (S1**2/n1 + S2**2/n2)**2
-            dof_nomin = (1/(n1-1))*(S1**2/n1)**2 + (1/(n2-1))*(S2**2/n2)**2
-            dof = dof_domin/dof_nomin
-            self.report['Degree of Freedom'] = dof
+            dof_numer = (S1**2/n1 + S2**2/n2)**2
+            dof_denom = (1/(n1-1))*(S1**2/n1)**2 + (1/(n2-1))*(S2**2/n2)**2
+            self.dof = dof_numer/dof_denom            
             #Calculate talpha
-            talpha = talphaTails_Dict[self.H1_oper](self.alpha, dof)
-            self.report['talpha'] = talpha
+            self.talpha = talphaTails_Dict[self.H1_oper](self.alpha, self.dof)            
             #Calculate ttest
-            ttest = ((xbar1-xbar2) - self.D)/sqrt(S1**2/n1 + S2**2/n2)
-            self.report['ttest'] = ttest
+            self.ttest = ((xbar1-xbar2) - self.D)/sqrt(S1**2/n1 + S2**2/n2)
             #Decision
-            decn = Decision[self.H1_oper](ttest, talpha)
-            if decn: self.report['Test result'] = "SUCCESS to REJECT null hypothesis."
-            else: self.report['Test result'] = "FAIL to REJECT null hypothesis."
-            return decn
-
+            decn = Decision[self.H1_oper](self.ttest, self.talpha)
+            if decn: self.reject_H0 = True   #SUCCESS to REJECT null hypothesis.
+            else: self.reject_H0 = False     #FAIL to REJECT null hypothesis.        
+        
     def reporter(self):
-        self.report ['Report state'] = "Test completed."
-        self.report ['Population variance known'] = self.sampleGroup1.is_popVarianceKnown
-        self.report['alpha'] = self.alpha
-        for i in self.report.keys():
-            print(f"{i} :  ", self.report[i])
+       report = {'Population variance known': self.SampleGroup1.is_popVarianceKnown,
+                 'alpha': self.alpha}
+       if self.SampleGroup1.is_popVarianceKnown:     #Population variance is known
+            report['zalpha'] = self.zalpha
+            report['ztest'] = self.ztest
+            report['Test result'] = DecnWords[self.reject_H0]
+       else:                                         #Population variance is not known
+            report['DoF'] = self.dof
+            report['talpha'] = self.talpha
+            report['ttest'] = self.ttest
+            report['Test result'] = DecnWords[self.reject_H0]
+       for i in report.keys():
+            print(f"{i}  :  ", report[i])
+        
 
 #======================================================================================================
 
@@ -111,17 +113,17 @@ D ---> meu1 - meu2, normally zero
 class TwoPopulations_OutcomesDiffsEstimation():
 
     def __init__(self, outcome1, outcome2, alpha, H1_oper, D=0, sigmad='na'):
-        #sigmad:  'na'---> unknown population deviation, number--->known population deviation
+        '''
+outcome1, outcome2 ---> type: numpy arrays of equal sizes.
+sigmad:  'na';(default value)---> unknown population deviation, number--->known population deviation
+'''
         self.outcome1 = outcome1
         self.outcome2 = outcome2
         self.n = outcome1.size        
         self.H1_oper = H1_oper
         self.alpha = alpha
         self.D = D
-        self.sigmad = sigmad
-        self.report = {'Report state': "Test not applied yet."}
-
-    def reject_H0(self):
+        self.sigmad = sigmad        
         if self.sigmad != 'na':   #POPULATION DEVIATION KNOWN
             Sd = self.sigmad / sqrt(self.n)
             pass #z-score
@@ -130,23 +132,24 @@ class TwoPopulations_OutcomesDiffsEstimation():
             di = self.outcome1 - self.outcome2
             dbar = di.mean()
             Sd = stdev(di, dbar)
-            ttest = (dbar-self.D) / (Sd/sqrt(self.n))
-            self.report['ttest'] = ttest
+            self.ttest = (dbar-self.D) / (Sd/sqrt(self.n))            
             #Calculate talpha
-            dof = self.n - 1            
-            talpha = talphaTails_Dict[self.H1_oper](self.alpha, dof)
-            self.report['talpha'] = talpha
+            self.dof = self.n - 1            
+            self.talpha = talphaTails_Dict[self.H1_oper](self.alpha, self.dof)            
             #Decision
-            decn = Decision[self.H1_oper](ttest, talpha)
-            if decn: self.report['Test result'] = "SUCCESS to REJECT null hypothesis."
-            else: self.report['Test result'] = "FAIL to REJECT null hypothesis."
-            return decn
-
+            decn = Decision[self.H1_oper](self.ttest, self.talpha)
+            if decn: self.reject_H0 = True   #SUCCESS to REJECT null hypothesis.
+            else: self.reject_H0 = False     #FAIL to REJECT null hypothesis. 
+    
     def reporter(self):
-        self.report ['Report state'] = "Test completed."        
-        self.report['alpha'] = self.alpha
-        for i in self.report.keys():
-            print(f"{i} :  ", self.report[i])
+        report = {'alpha': self.alpha,
+                  'ttest': self.ttest,
+                  'DoF': self.dof,
+                  'talpha': self.talpha,
+                  'Test result': DecnWords[self.reject_H0]}       
+        
+        for i in report.keys():
+            print(f"{i}  :  ", report[i])
             
 #===============================================================================================
 '''
@@ -154,57 +157,79 @@ class TwoPopulations_OutcomesDiffsEstimation():
    '''
 
 class TwoPopulations_ProportionDiffsEstimation():
-    def __init__(self, sampleProp1, sampleProp2, alpha, H1_oper):
-        self.prop1 = sampleProp1.prop
-        self.n1 = sampleProp1.n
-        self.prop2 = sampleProp2.prop
-        self.n2 = sampleProp2.n
+    def __init__(self, SampleProp1, SampleProp2, alpha, H1_oper):
+        '''
+SampleProp1, SampleProp2 ---> Two variable cutomized object class of type SampleProp. Refer to HypoTools.py for details.
+'''
+        self.prop1 = SampleProp1.prop
+        self.n1 = SampleProp1.n
+        self.prop2 = SampleProp2.prop
+        self.n2 = SampleProp2.n
         self.alpha = alpha
         self.H1_oper = H1_oper
-        self.report = {'Report state': "Test not applied yet."}
-
-    def reject_H0(self):
         #Calculate zalpha
-        zalpha = zalphaTails_Dict[self.H1_oper](self.alpha)
-        self.report['zalpha'] = zalpha
+        self.zalpha = zalphaTails_Dict[self.H1_oper](self.alpha)        
         #Calculate ztest
         prop1 = self.prop1
         n1 = self.n1
         prop2 = self.prop2
         n2 = self.n2
         poolProp = (prop1*n1 + prop2*n2)/(n1+n2)
-        ztest_domin = prop1 - prop2
-        ztest_nomin = sqrt(poolProp*(1-poolProp)*(1/n1 + 1/n2))
-        ztest = ztest_domin / ztest_nomin
-        self.report['ztest'] = ztest
+        ztest_numer = prop1 - prop2
+        ztest_denom = sqrt(poolProp*(1-poolProp)*(1/n1 + 1/n2))
+        self.poolProp = poolProp
+        self.ztest = ztest_numer / ztest_denom        
         #Decision
-        decn = Decision[self.H1_oper](ztest, zalpha)
-        if decn: self.report['Test result'] = "SUCCESS to REJECT null hypothesis."
-        else: self.report['Test result'] = "FAIL to REJECT null hypothesis."
-        return decn
+        decn = Decision[self.H1_oper](self.ztest, self.zalpha)
+        if decn: self.reject_H0 = True   #SUCCESS to REJECT null hypothesis.
+        else: self.reject_H0 = False     #FAIL to REJECT null hypothesis.   
 
     def reporter(self):
-        self.report ['Report state'] = "Test completed."        
-        self.report['alpha'] = self.alpha
-        for i in self.report.keys():
-            print(f"{i} :  ", self.report[i])
-
-     
-        
-        
-            
-        
-        
-  
-        
-        
+        report = {'alpha': self.alpha,
+                  'Pool proportion': self.poolProp, 
+                  'zalpha': self.zalpha,
+                  'ztest': self.ztest,
+                  'Test result': DecnWords[self.reject_H0]}
+        for i in report.keys():
+            print(f"{i}  :  ", report[i])
 
 
-        
-        
-        
+#=============================================================================================
+'''
+   Hypothesis test for variances difference for two populations
+   '''
+class TwoPopulations_VariancesDiffEstimation():
+    '''
+H0:  Pop variance 1 = Pop variance 2
+H1:  Pop variance 1 != Pop variance 2
+'''
+    def __init__(self, xSampleGroup1, xSampleGroup2, alpha):
+        self.alpha = alpha
+        #Calcualting ftest
+        Sa = max(xSampleGroup1.sigma, xSampleGroup2.sigma)
+        Sb = min(xSampleGroup1.sigma, xSampleGroup2.sigma)        
+        self.ftest = Sa**2/Sb**2
+        #Calcualting falpha
+        if xSampleGroup1.sigma > xSampleGroup2.sigma :
+            dofa = xSampleGroup1.n - 1
+            dofb = xSampleGroup2.n - 1
+        else:
+            dofa = xSampleGroup2.n - 1
+            dofb = xSampleGroup1.n - 1
+        self.falpha = f.ppf(1-alpha, dofa, dofb)
+        #Dicision   --- Always RTT
+        if self.ftest>self.falpha:
+            self.reject_H0 = True   #SUCCESS to REJECT null hypothesis ---> variances are not equal
+        else:
+            self.reject_H0 = False  #FAIL to REJECT null hypothesis   ---> variances are equal
+
+    def reporter(self):
+        report = {'alpha': self.alpha,
+                  'ftest': self.ftest, 
+                  'falpha': self.falpha,                  
+                  'Test result': DecnWords[self.reject_H0]}
+        for i in report.keys():
+            print(f"{i}  :  ", report[i])
             
-            
-            
-            
         
+
